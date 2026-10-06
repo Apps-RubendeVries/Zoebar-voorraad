@@ -67,6 +67,28 @@
   --shadow:0 1px 2px rgba(0,0,0,.45), 0 12px 30px -20px rgba(0,0,0,.9);
 }
 
+/* ---- toegangsscherm ---- */
+html:not(.ontgrendeld) body > header,
+html:not(.ontgrendeld) body > main,
+html:not(.ontgrendeld) body > nav.tabs{display:none!important}
+html.ontgrendeld #slot{display:none!important}
+#slot{
+  position:fixed;inset:0;z-index:100;background:var(--night);
+  display:flex;align-items:center;justify-content:center;padding:24px;
+}
+#slot .kaart{width:100%;max-width:340px;text-align:center}
+#slot .mark{margin:0 auto 16px}
+#slot .eyebrow{margin-bottom:4px}
+#slot h2{font-size:clamp(23px,7.5vw,32px);line-height:.95;text-transform:uppercase;color:#fff;margin-bottom:18px}
+#slot h2 b{color:var(--gold)}
+#slot input{
+  width:100%;text-align:center;font-size:22px;letter-spacing:.18em;font-weight:600;
+  padding:13px 12px;border-radius:10px;border:1px solid #3A362E;background:#201E19;color:#fff;
+}
+#slot input::placeholder{letter-spacing:.1em;font-weight:400;color:#6E6A5F}
+#slot button{width:100%;margin-top:10px}
+#slot .fout{color:#F0A79C;font-size:13px;margin-top:10px;min-height:18px}
+#slot .klein{color:#8C8779;font-size:12px;margin-top:20px;line-height:1.5}
 *{box-sizing:border-box}
 body{
   margin:0;background:var(--ground);color:var(--ink);
@@ -263,6 +285,32 @@ td input.wide{width:190px}
 @media (min-width:720px){.toast{bottom:26px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
+<script>
+/* Toegangscode. Wijzig deze regel om de code aan te passen en push opnieuw.
+   Let op: deze code staat in de broncode van de pagina en is dus een drempel,
+   geen slot. De gegevens zelf zijn beschermd via Supabase, niet hiermee. */
+var TOEGANGSCODE = "2627";
+
+(function(){
+  try{
+    if(localStorage.getItem("zoebas-kantine-toegang") === TOEGANGSCODE)
+      document.documentElement.classList.add("ontgrendeld");
+  }catch(e){}
+})();
+</script>
+
+<div id="slot">
+  <form class="kaart" id="slotForm" autocomplete="off">
+    <div class="mark" aria-hidden="true"><span></span></div>
+    <p class="eyebrow">Zoetermeer Basketbal · Kantine</p>
+    <h2>Kantine<b>·</b>voorraad</h2>
+    <input type="password" id="slotCode" inputmode="numeric" placeholder="Toegangscode"
+           aria-label="Toegangscode" autocomplete="off">
+    <button type="submit" class="btn primary">Openen</button>
+    <p class="fout" id="slotFout" role="alert"></p>
+    <p class="klein">Vraag de code bij Ruben. Dit scherm houdt toevallige bezoekers tegen; het is geen beveiliging van de gegevens.</p>
+  </form>
+</div>
 
 <header>
   <div class="band">
@@ -363,6 +411,7 @@ td input.wide{width:190px}
       <label class="btn" for="importFile">Back-up terugzetten</label>
       <input type="file" id="importFile" accept=".json" hidden>
       <button class="btn dark" id="btnNulstelling">Nieuwe telling: alles op 0</button>
+      <button class="btn ghost" id="btnAfmelden">Dit apparaat afmelden</button>
       <button class="btn ghost" id="btnReset">Alles terugzetten naar startlijst</button>
     </div>
   </section>
@@ -372,6 +421,27 @@ td input.wide{width:190px}
 
 <script>
 "use strict";
+
+/* ---------------- toegangsscherm ---------------- */
+(function(){
+  const form = document.getElementById("slotForm");
+  if(!form) return;
+  const veld = document.getElementById("slotCode");
+  const fout = document.getElementById("slotFout");
+  if(!document.documentElement.classList.contains("ontgrendeld"))
+    setTimeout(()=>veld.focus(), 120);
+  form.addEventListener("submit", e=>{
+    e.preventDefault();
+    if(veld.value.trim() === TOEGANGSCODE){
+      try{ localStorage.setItem("zoebas-kantine-toegang", TOEGANGSCODE); }catch(err){}
+      document.documentElement.classList.add("ontgrendeld");
+      fout.textContent = "";
+    } else {
+      fout.textContent = "Dat is niet de juiste code.";
+      veld.value = ""; veld.focus();
+    }
+  });
+})();
 
 /* ------------------------------------------------------------------
    Gedeelde opslag (Supabase). Leeg laten = alleen dit apparaat.
@@ -1292,6 +1362,11 @@ $("#btnNulstelling").addEventListener("click", ()=>{
   bewaar(); tekenAlles();
   toonTab("voorraad");
   melding("Alles op 0. Tel maar door.");
+});
+$("#btnAfmelden").addEventListener("click", ()=>{
+  if(!confirm("Dit apparaat afmelden? De toegangscode wordt opnieuw gevraagd. De voorraadgegevens blijven staan.")) return;
+  try{ localStorage.removeItem("zoebas-kantine-toegang"); }catch(e){}
+  location.reload();
 });
 $("#btnReset").addEventListener("click", ()=>{
   if(!confirm("Alles terugzetten naar de startlijst uit de Google Sheet? Je huidige aantallen gaan verloren.")) return;
