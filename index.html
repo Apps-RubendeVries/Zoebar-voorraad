@@ -234,6 +234,18 @@ td input.w{width:74px}
 td input.wide{width:190px}
 .tag{display:inline-block;font-size:10.5px;padding:2px 8px;border-radius:20px;background:var(--surface-2);color:var(--ink-2);letter-spacing:.04em;text-transform:uppercase}
 .tag.new{background:var(--gold-soft);color:var(--gold-deep)}
+.levering{border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);
+  box-shadow:var(--shadow);margin-bottom:8px;overflow:hidden}
+.levering summary{list-style:none;cursor:pointer;padding:11px 13px;display:flex;gap:10px;align-items:baseline}
+.levering summary::-webkit-details-marker{display:none}
+.levering summary::after{content:"▾";margin-left:auto;color:var(--ink-3);font-size:12px}
+.levering[open] summary::after{content:"▴"}
+.levering .datum{font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:17px;text-transform:uppercase}
+.levering .ref{font-size:12px;color:var(--gold-deep);font-weight:600}
+.levering .tel{font-size:12px;color:var(--ink-3)}
+.levering .body{border-top:1px solid var(--line);padding:10px 13px 13px}
+.levering table{font-size:13px}
+.levering th,.levering td{padding:5px 8px}
 .log{font-size:12.5px;color:var(--ink-2);display:flex;flex-direction:column;gap:3px;margin-top:8px}
 .log div{display:flex;gap:10px}
 .log time{color:var(--ink-3);flex:none;font-variant-numeric:tabular-nums}
@@ -338,6 +350,10 @@ td input.wide{width:190px}
 
     <h3 class="sub">Genegeerde kassaregels</h3>
     <p class="hint" id="negeerLijst"></p>
+
+    <h3 class="sub">Geboekte leveringen</h3>
+    <p class="hint">Elke geboekte levering met datum, referentie en wat er is bijgeschreven — om naast de factuur te leggen.</p>
+    <div id="leveringLijst"></div>
 
     <h3 class="sub">Logboek</h3>
     <div class="log" id="logLijst"></div>
@@ -445,6 +461,7 @@ function verseState(){
     })),
     negeer:["Tenue oud","Bapao Kip","Bapao Rundvlees","Cola, Coca Cola Light"],
     log:[],
+    leveringen:[],
     laatsteImport:null,
     stap:"stuk"
   };
@@ -463,6 +480,7 @@ function laad(){
 }
 /* Zet een opslag van vóór de soort-indeling om. */
 function migreer(s){
+  if(!Array.isArray(s.leveringen)) s.leveringen = [];
   if(s.schema >= 2) return s;
   s.producten = s.producten.filter(p=>!/^bapao/i.test(p.naam) && !/coca cola light/i.test(p.naam));
   s.producten.forEach(p=>{
@@ -478,6 +496,7 @@ function migreer(s){
       voorraad:0, verkoopPer:0, kassanamen:[], soort:"signaal", bestellen:false, besteld:0});
   });
   ["Bapao Kip","Bapao Rundvlees","Cola, Coca Cola Light"].forEach(n=>{ if(!s.negeer.includes(n)) s.negeer.push(n); });
+  if(!Array.isArray(s.leveringen)) s.leveringen = [];
   s.schema = 2;
   return s;
 }
@@ -557,7 +576,7 @@ function toonTab(naam){
   ["voorraad","kassa","bestellen","beheer"].forEach(n=>
     $("#tab-"+n).hidden = n!==naam);
   if(naam==="bestellen") tekenBestellijst();
-  if(naam==="beheer") tekenBeheer();
+  if(naam==="beheer"){ tekenBeheer(); tekenLeveringen(); }
   window.scrollTo({top:0});
 }
 
@@ -926,6 +945,94 @@ function tekenKassaResultaat(){
   box.append(el("div",{class:"actions"},[knop]));
 }
 
+/* ---------------- leveringen ---------------- */
+/* Elke geboekte levering gaat als één regel naar kantine_log (JSON in de
+   tekstkolom), zodat je hem later naast de factuur kunt leggen. Zonder
+   serververbinding blijft hij lokaal staan. */
+
+async function schrijfLevering(record){
+  state.leveringen = [record].concat(state.leveringen || []).slice(0, 40);
+  bewaarLokaal();
+  if(!gedeeld || !sb) return;
+  try{ await sb.from("kantine_log").insert({ tekst: JSON.stringify(record) }); }
+  catch(e){}
+}
+
+async function haalLeveringen(){
+  if(gedeeld && sb){
+    try{
+      const r = await sb.from("kantine_log").select("moment,tekst")
+        .order("moment",{ascending:false}).limit(40);
+      if(!r.error && r.data){
+        return r.data.map(rij=>{
+          try{ const o = JSON.parse(rij.tekst); o.moment = rij.moment; return o; }
+          catch(e){ return null; }
+        }).filter(o => o && o.type === "levering");
+      }
+    }catch(e){}
+  }
+  return state.leveringen || [];
+}
+
+function leveringTekst(l){
+  const d = new Date(l.moment).toLocaleString("nl-NL",
+    {day:"numeric",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"});
+  let uit = "Levering kantine Zoebas — "+d+(l.referentie ? " — "+l.referentie : "")+"\n\n";
+  l.regels.forEach(r=>{
+    uit += "- "+r.naam+": "+r.aantal+" "+r.eenheid+
+           (r.stuks ? " ("+r.stuks+" stuks)" : "")+"\n";
+  });
+  const stuks = l.regels.reduce((t,r)=>t+(r.stuks||0),0);
+  uit += "\n"+l.regels.length+" regels, "+stuks+" stuks totaal";
+  return uit;
+}
+
+async function tekenLeveringen(){
+  const box = $("#leveringLijst"); if(!box) return;
+  box.textContent = "";
+  const lijst = await haalLeveringen();
+  if(!lijst.length){
+    box.append(el("div",{class:"empty",text:"Nog geen leveringen geboekt."}));
+    return;
+  }
+  lijst.forEach(l=>{
+    const stuks = l.regels.reduce((t,r)=>t+(r.stuks||0),0);
+    const d = new Date(l.moment);
+    const tb = el("tbody");
+    l.regels.forEach(r=>{
+      tb.append(el("tr",{},[
+        el("td",{text:r.naam}),
+        el("td",{class:"n num",text:String(r.aantal)}),
+        el("td",{text:r.eenheid}),
+        el("td",{class:"n num",text:r.stuks ? "+"+r.stuks : "—"}),
+        el("td",{class:"n num",text:r.nieuweVoorraad!=null ? String(r.nieuweVoorraad) : "—"})
+      ]));
+    });
+
+    box.append(el("details",{class:"levering"},[
+      el("summary",{},[
+        el("span",{class:"datum",text:d.toLocaleDateString("nl-NL",{day:"numeric",month:"short",year:"numeric"})}),
+        l.referentie ? el("span",{class:"ref",text:l.referentie}) : null,
+        el("span",{class:"tel",text:l.regels.length+" regels · "+stuks+" stuks"})
+      ]),
+      el("div",{class:"body"},[
+        el("div",{class:"tablewrap"},[el("table",{},[
+          el("thead",{},[el("tr",{},[
+            el("th",{text:"Product"}), el("th",{class:"n",text:"Aantal"}),
+            el("th",{text:"Eenheid"}), el("th",{class:"n",text:"Stuks"}),
+            el("th",{class:"n",text:"Nieuwe stand"})])]),
+          tb])]),
+        el("div",{class:"actions"},[
+          el("button",{class:"btn",text:"Kopieer",onclick:async()=>{
+            try{ await navigator.clipboard.writeText(leveringTekst(l)); melding("Levering gekopieerd."); }
+            catch(e){ melding("Kopiëren lukte niet."); }
+          }})
+        ])
+      ])
+    ]));
+  });
+}
+
 /* ---------------- bestellijst ---------------- */
 /* Op de bestellijst staat alles wat onder de streep zit, plus alles waarvan
    je eerder hebt ingevuld dat het besteld is. Wat je invult is leidend:
@@ -1019,18 +1126,28 @@ function tekenBestellijst(){
     el("button",{class:"btn dark",text:"Levering boeken",onclick:()=>{
       const regels = huidig();
       if(!regels.length){ melding("Er staat niets op de lijst om te boeken."); return; }
-      const omschrijving = regels.map(r=>r.p.naam+" "+r.n).join(", ");
       if(!confirm("Levering boeken?\n\n"+
                   regels.map(r=>"• "+r.p.naam+": "+r.n+" "+verpakking(r.p,r.n)+
                     (isSignaal(r.p)?"":" (+"+r.n*Math.max(1,r.p.perVerp)+" stuks)")).join("\n"))) return;
+
+      const referentie = (prompt("Leverancier of factuurnummer? (mag leeg)","") || "").trim();
+
+      const record = { type:"levering", moment:new Date().toISOString(), referentie, regels:[] };
       regels.forEach(({p,n})=>{
-        if(isSignaal(p)) p.bestellen = false;
-        else p.voorraad += n * Math.max(1, p.perVerp);
+        const stuks = isSignaal(p) ? 0 : n * Math.max(1, p.perVerp);
+        if(isSignaal(p)) p.bestellen = false; else p.voorraad += stuks;
         p.besteld = 0;
+        record.regels.push({
+          naam:p.naam, aantal:n, eenheid:verpakking(p,n), stuks,
+          nieuweVoorraad: isSignaal(p) ? null : p.voorraad
+        });
       });
-      logboek("Levering geboekt: "+omschrijving);
+
+      logboek("Levering geboekt"+(referentie ? " ("+referentie+")" : "")+": "+
+              record.regels.length+" regels");
       bewaar(); tekenKop(); tekenVoorraad(); tekenBestellijst();
-      melding("Levering bijgeschreven.");
+      schrijfLevering(record).then(()=>{ if(actieveTab==="beheer") tekenLeveringen(); });
+      melding("Levering bijgeschreven en vastgelegd.");
     }}),
     el("button",{class:"btn ghost",text:"Aantallen terug naar advies",onclick:()=>{
       state.producten.forEach(p=>{ p.besteld = 0; });
