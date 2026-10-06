@@ -617,10 +617,13 @@ function teBestellen(){
 }
 function verpakkingWoord(p){
   if(p.perVerp<=1) return "stuk";
-  if(p.cat==="Dranken") return p.perVerp>=20 ? "krat" : "sixpack";
+  if(p.cat==="Dranken"){
+    if(/^bier\b/i.test(p.naam)) return "krat";      // bier gaat per krat
+    return p.perVerp>=20 ? "tray" : "sixpack";
+  }
   return "doos";
 }
-const MEERVOUD = {krat:"kratten", doos:"dozen", sixpack:"sixpacks", stuk:"stuks"};
+const MEERVOUD = {krat:"kratten", tray:"trays", doos:"dozen", sixpack:"sixpacks", stuk:"stuks"};
 function verpakking(p, n){
   const w = verpakkingWoord(p);
   return n===1 ? w : (MEERVOUD[w] || w+"s");
