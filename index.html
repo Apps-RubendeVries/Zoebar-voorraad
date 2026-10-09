@@ -300,6 +300,24 @@ td input.wide{width:190px}
 .toast.show{opacity:1}
 @media (min-width:720px){.toast{bottom:26px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ---- afdrukbaar rapport ---- */
+#printbaar{display:none}
+@media print{
+  html,body{background:#fff!important}
+  body > *:not(#printbaar){display:none!important}
+  #printbaar{display:block!important;color:#000;background:#fff;font-size:11pt}
+  #printbaar h1{font-size:20pt;text-transform:uppercase;margin:0 0 2px;color:#000;font-family:"Barlow Condensed",sans-serif}
+  #printbaar .meta{font-size:10pt;color:#444;margin-bottom:14px}
+  #printbaar .sam{font-size:10.5pt;margin:0 0 12px;padding:8px 10px;border:1px solid #bbb}
+  #printbaar table{width:100%;border-collapse:collapse;font-size:10.5pt}
+  #printbaar th,#printbaar td{border-bottom:1px solid #ccc;padding:5px 6px;text-align:left}
+  #printbaar th.n,#printbaar td.n{text-align:right}
+  #printbaar thead th{border-bottom:1.5px solid #000;font-size:9pt;text-transform:uppercase;letter-spacing:.06em}
+  #printbaar tr.afwijkend td{font-weight:700}
+  #printbaar .voet{margin-top:14px;font-size:9.5pt;color:#444}
+  @page{margin:16mm}
+}
 </style>
 <script>
 /* Toegangscode. Wijzig deze regel om de code aan te passen en push opnieuw.
@@ -453,6 +471,7 @@ var TOEGANGSCODE = "2627";
   </section>
 </main>
 
+<div id="printbaar" aria-hidden="true"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
@@ -1222,7 +1241,16 @@ function tekenVergelijking(box){
       toonTab("voorraad");
       melding("Telling doorgevoerd.");
     }}),
-    el("button",{class:"btn",text:"Kopieer verschillen",onclick:async()=>{
+    el("button",{class:"btn",text:"Rapport afdrukken",onclick:()=>{
+      drukRapportAf({type:"telling", moment:new Date().toISOString(), referentie:"",
+        regels: geteld.map(r=>({naam:r.p.naam, geteld:r.geteld, verwacht:r.verwacht, verschil:r.verschil}))},
+        ongeteld.map(p=>p.naam));
+    }}),
+    el("button",{class:"btn",text:"Download CSV",onclick:()=>{
+      downloadTelling({moment:new Date().toISOString(),
+        regels: geteld.map(r=>({naam:r.p.naam, geteld:r.geteld, verwacht:r.verwacht, verschil:r.verschil}))});
+    }}),
+    el("button",{class:"btn ghost",text:"Kopieer als tekst",onclick:async()=>{
       const d = new Date().toLocaleDateString("nl-NL",{day:"numeric",month:"long",year:"numeric"});
       let t = "Telling kantine Zoebas — "+d+"\n\n";
       geteld.forEach(r=>{ t += "- "+r.p.naam+": geteld "+r.geteld+", verwacht "+r.verwacht+
@@ -1232,6 +1260,71 @@ function tekenVergelijking(box){
     }}),
     el("button",{class:"btn ghost",text:"Telling wissen",onclick:wisTelling})
   ]));
+}
+
+/* ---------------- rapport van een telling ---------------- */
+
+function telSamenvatting(regels){
+  const afwijkend = regels.filter(r=>r.verschil!==0);
+  return {
+    aantal: regels.length,
+    klopt: regels.length - afwijkend.length,
+    afwijkend: afwijkend.length,
+    tekort: regels.filter(r=>r.verschil<0).reduce((t,r)=>t+r.verschil,0),
+    over:   regels.filter(r=>r.verschil>0).reduce((t,r)=>t+r.verschil,0)
+  };
+}
+
+function vulRapport(record, ongeteld){
+  const box = $("#printbaar"); box.textContent = "";
+  const sam = telSamenvatting(record.regels);
+  const d = new Date(record.moment);
+  const datum = d.toLocaleString("nl-NL",
+    {weekday:"long",day:"numeric",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"});
+
+  const tb = el("tbody");
+  record.regels.slice().sort((a,b)=>a.verschil-b.verschil).forEach(r=>{
+    tb.append(el("tr",{class:r.verschil!==0?"afwijkend":""},[
+      el("td",{text:r.naam}),
+      el("td",{class:"n",text:String(r.geteld)}),
+      el("td",{class:"n",text:String(r.verwacht)}),
+      el("td",{class:"n",text:(r.verschil>0?"+":"")+r.verschil})
+    ]));
+  });
+
+  box.append(
+    el("h1",{text:"Voorraadtelling kantine"}),
+    el("p",{class:"meta",text:"Basketbalvereniging Zoebas · "+datum+
+      (record.referentie ? " · "+record.referentie : "")}),
+    el("p",{class:"sam",text:
+      sam.aantal+" producten geteld — "+sam.klopt+" kloppen, "+sam.afwijkend+" wijken af. "+
+      "Tekort "+Math.abs(sam.tekort)+" stuks, overschot "+sam.over+" stuks."}),
+    el("table",{},[
+      el("thead",{},[el("tr",{},[
+        el("th",{text:"Product"}), el("th",{class:"n",text:"Geteld"}),
+        el("th",{class:"n",text:"Verwacht"}), el("th",{class:"n",text:"Verschil"})])]),
+      tb
+    ])
+  );
+  if(ongeteld && ongeteld.length)
+    box.append(el("p",{class:"voet",text:"Niet geteld en ongewijzigd gelaten: "+ongeteld.join(", ")}));
+  box.append(el("p",{class:"voet",
+    text:"Een tekort betekent dat voorraad is verdwenen zonder kassaregel: breuk, weggegeven, een gemiste afboeking of een telfout."}));
+}
+
+function drukRapportAf(record, ongeteld){
+  vulRapport(record, ongeteld);
+  setTimeout(()=>window.print(), 60);
+}
+
+function downloadTelling(record){
+  const kop = "Product;Geteld;Verwacht;Verschil\n";
+  const regels = record.regels.slice().sort((a,b)=>a.verschil-b.verschil)
+    .map(r=>[r.naam, r.geteld, r.verwacht, r.verschil].join(";")).join("\n");
+  const blob = new Blob(["\ufeff"+kop+regels], {type:"text/csv;charset=utf-8"});
+  const naam = "telling-kantine-"+new Date(record.moment).toISOString().slice(0,10)+".csv";
+  const a = el("a",{href:URL.createObjectURL(blob), download:naam});
+  document.body.append(a); a.click(); a.remove();
 }
 
 /* ---------------- leveringen ---------------- */
@@ -1313,7 +1406,11 @@ async function tekenTellingHistorie(){
           el("thead",{},[el("tr",{},[
             el("th",{text:"Product"}), el("th",{class:"n",text:"Geteld"}),
             el("th",{class:"n",text:"Verwacht"}), el("th",{class:"n",text:"Verschil"})])]),
-          tb])])
+          tb])]),
+        el("div",{class:"actions"},[
+          el("button",{class:"btn",text:"Rapport afdrukken",onclick:()=>drukRapportAf(t)}),
+          el("button",{class:"btn",text:"Download CSV",onclick:()=>downloadTelling(t)})
+        ])
       ])
     ]));
   });
