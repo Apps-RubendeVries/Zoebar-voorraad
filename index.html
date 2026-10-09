@@ -1,3 +1,5 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Zoebas Kantinevoorraad</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -145,9 +147,10 @@ nav.tabs .inner{max-width:820px;margin:0 auto;display:flex;gap:4px;width:100%}
 nav.tabs button{
   flex:1;background:none;border:0;padding:7px 4px;border-radius:22px;cursor:pointer;
   display:flex;flex-direction:column;align-items:center;gap:2px;color:#A9A498;
-  font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:13.5px;
-  letter-spacing:.05em;text-transform:uppercase;
+  font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:12.5px;
+  letter-spacing:.02em;text-transform:uppercase;
 }
+@media (max-width:420px){ nav.tabs button{font-size:11.5px;padding:7px 2px} }
 nav.tabs button svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 nav.tabs button[aria-selected="true"]{background:var(--gold);color:var(--night)}
 @media (max-width:560px){
@@ -237,6 +240,19 @@ textarea{width:100%;min-height:140px;font-family:ui-monospace,"SF Mono",Menlo,mo
 }
 .toggle[aria-pressed="true"]{background:var(--danger);border-color:var(--danger);color:var(--danger-ink)}
 
+.telbalk{
+  position:sticky;top:0;z-index:15;background:var(--ground);
+  padding:8px 0 10px;margin-bottom:4px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+  border-bottom:1px solid var(--line-strong);
+}
+.telbalk .voortgang{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:19px;text-transform:uppercase}
+.telbalk .voortgang small{font-family:"IBM Plex Sans",sans-serif;font-weight:500;font-size:11px;
+  letter-spacing:.08em;color:var(--ink-3);display:block;line-height:1.2}
+.telbalk .rechts{margin-left:auto;display:flex;gap:6px}
+.row.ongeteld .stepper input{background:var(--surface-2);color:var(--ink-3)}
+.verschil-kort{font-weight:600}
+.verschil-tekort{color:var(--danger)}
+.verschil-over{color:var(--ok)}
 .empty{padding:28px 16px;text-align:center;color:var(--ink-3);background:var(--surface);border:1px dashed var(--line-strong);border-radius:var(--radius)}
 .note{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--gold);border-radius:var(--radius);padding:12px 14px;font-size:13.5px;color:var(--ink-2);margin-bottom:14px}
 .note b{color:var(--ink)}
@@ -331,6 +347,8 @@ var TOEGANGSCODE = "2627";
         <svg viewBox="0 0 24 24"><path d="M3 7h18M3 12h18M3 17h18"/></svg>Voorraad</button>
       <button role="tab" data-tab="kassa" aria-selected="false">
         <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h5"/></svg>Kassa</button>
+      <button role="tab" data-tab="telling" aria-selected="false">
+        <svg viewBox="0 0 24 24"><path d="M9 4h6v3H9zM7 5H5.5A1.5 1.5 0 0 0 4 6.5v13A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.5-1.5v-13A1.5 1.5 0 0 0 18.5 5H17"/><path d="m8.5 13.5 2 2 4-4.5"/></svg>Telling</button>
       <button role="tab" data-tab="bestellen" aria-selected="false">
         <svg viewBox="0 0 24 24"><path d="M4 5h2l2.2 10.5a2 2 0 0 0 2 1.5h7.4a2 2 0 0 0 2-1.6L21 8H7"/><circle cx="10" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg>Bestellen</button>
       <button role="tab" data-tab="beheer" aria-selected="false">
@@ -378,6 +396,21 @@ var TOEGANGSCODE = "2627";
   </section>
 
   <!-- ============ BEHEER ============ -->
+  <!-- ============ TELLING ============ -->
+  <section id="tab-telling" hidden>
+    <h2 class="title">Telling</h2>
+    <p class="intro">Tel vanaf nul, zonder dat de voorraad verandert. Als je klaar bent vergelijk je jouw telling met de verwachte stand, en pas daarna voer je hem door.</p>
+    <div class="toolbar">
+      <input type="search" id="zoekTelling" placeholder="Zoek product…" aria-label="Zoek product in de telling">
+      <div class="seg" role="group" aria-label="Stapgrootte telling">
+        <button id="telStuk" aria-pressed="true">Per stuk</button>
+        <button id="telVerp" aria-pressed="false">Per verpakking</button>
+      </div>
+    </div>
+    <div id="tellingBalk"></div>
+    <div id="tellingLijst"></div>
+  </section>
+
   <section id="tab-beheer" hidden>
     <h2 class="title">Beheer</h2>
     <p class="intro">De streep is het aantal stuks dat je minimaal in huis wilt hebben. Verpakking is hoeveel er in één krat, doos of zak zit. Kassanamen bepalen hoe een rapportregel bij het juiste product terechtkomt.</p>
@@ -399,6 +432,10 @@ var TOEGANGSCODE = "2627";
     <h3 class="sub">Genegeerde kassaregels</h3>
     <p class="hint" id="negeerLijst"></p>
 
+    <h3 class="sub">Uitgevoerde tellingen</h3>
+    <p class="hint">Elke doorgevoerde telling met de verschillen tussen geteld en verwacht.</p>
+    <div id="tellingHistorie"></div>
+
     <h3 class="sub">Geboekte leveringen</h3>
     <p class="hint">Elke geboekte levering met datum, referentie en wat er is bijgeschreven — om naast de factuur te leggen.</p>
     <div id="leveringLijst"></div>
@@ -410,7 +447,6 @@ var TOEGANGSCODE = "2627";
       <button class="btn" id="btnExport">Back-up downloaden</button>
       <label class="btn" for="importFile">Back-up terugzetten</label>
       <input type="file" id="importFile" accept=".json" hidden>
-      <button class="btn dark" id="btnNulstelling">Nieuwe telling: alles op 0</button>
       <button class="btn ghost" id="btnAfmelden">Dit apparaat afmelden</button>
       <button class="btn ghost" id="btnReset">Alles terugzetten naar startlijst</button>
     </div>
@@ -527,11 +563,12 @@ function verseState(){
     producten: START.map((p,i)=>({
       id:"p"+i, cat:p[0], groep:p[1], naam:p[2],
       streep:p[3], perVerp:p[4], voorraad:p[5], verkoopPer:p[6],
-      kassanamen:p[7].slice(), soort:p[8], bestellen:false, besteld:0
+      kassanamen:p[7].slice(), soort:p[8], bestellen:false, besteld:0, geteld:null
     })),
     negeer:["Tenue oud","Bapao Kip","Bapao Rundvlees","Cola, Coca Cola Light"],
     log:[],
     leveringen:[],
+    tellingen:[],
     laatsteImport:null,
     stap:"stuk"
   };
@@ -551,19 +588,21 @@ function laad(){
 /* Zet een opslag van vóór de soort-indeling om. */
 function migreer(s){
   if(!Array.isArray(s.leveringen)) s.leveringen = [];
+  if(!Array.isArray(s.tellingen)) s.tellingen = [];
   if(s.schema >= 2) return s;
   s.producten = s.producten.filter(p=>!/^bapao/i.test(p.naam) && !/coca cola light/i.test(p.naam));
   s.producten.forEach(p=>{
     if(!p.soort) p.soort = (p.streep===0 && !/noodles/i.test(p.naam)) ? "signaal" : "tellen";
     if(typeof p.bestellen !== "boolean") p.bestellen = false;
     if(typeof p.besteld !== "number") p.besteld = 0;
+    if(p.geteld === undefined) p.geteld = null;
   });
   const plat = t => (t||"").toLowerCase().replace(/[^a-z0-9]+/g,"");
   const bestaat = n => s.producten.some(p=>plat(p.naam)===plat(n));
   START.filter(r=>r[0]==="Huishoudelijk").forEach((r,i)=>{
     if(bestaat(r[2])) return;
     s.producten.push({id:"h"+i, cat:r[0], groep:r[1], naam:r[2], streep:0, perVerp:1,
-      voorraad:0, verkoopPer:0, kassanamen:[], soort:"signaal", bestellen:false, besteld:0});
+      voorraad:0, verkoopPer:0, kassanamen:[], soort:"signaal", bestellen:false, besteld:0, geteld:null});
   });
   ["Bapao Kip","Bapao Rundvlees","Cola, Coca Cola Light"].forEach(n=>{ if(!s.negeer.includes(n)) s.negeer.push(n); });
   if(!Array.isArray(s.leveringen)) s.leveringen = [];
@@ -647,10 +686,11 @@ function toonTab(naam){
   actieveTab = naam;
   document.querySelectorAll("nav.tabs button").forEach(b=>
     b.setAttribute("aria-selected", String(b.dataset.tab===naam)));
-  ["voorraad","kassa","bestellen","beheer"].forEach(n=>
+  ["voorraad","kassa","telling","bestellen","beheer"].forEach(n=>
     $("#tab-"+n).hidden = n!==naam);
+  if(naam==="telling") tekenTelling();
   if(naam==="bestellen") tekenBestellijst();
-  if(naam==="beheer"){ tekenBeheer(); tekenLeveringen(); }
+  if(naam==="beheer"){ tekenBeheer(); tekenLeveringen(); tekenTellingHistorie(); }
   window.scrollTo({top:0});
 }
 
@@ -1019,34 +1059,213 @@ function tekenKassaResultaat(){
   box.append(el("div",{class:"actions"},[knop]));
 }
 
+/* ---------------- telling ---------------- */
+/* Tellen gebeurt los van de voorraad: p.geteld is null zolang een product niet
+   geteld is. Pas bij "doorvoeren" wordt de voorraad gelijkgetrokken, en het
+   verschil vastgelegd. De getelde waarden staan in Supabase, dus twee mensen
+   kunnen samen tellen. */
+
+let telStap = "tellen";
+let telZoek = "";
+let telStapGrootte = "stuk";
+
+const telbaar = () => state.producten.filter(p => !isSignaal(p));
+const isGeteld = p => p.geteld !== null && p.geteld !== undefined;
+
+$("#zoekTelling").addEventListener("input", e=>{ telZoek = e.target.value; tekenTelling(); });
+$("#telStuk").addEventListener("click", ()=>{ telStapGrootte="stuk"; tekenTelling(); });
+$("#telVerp").addEventListener("click", ()=>{ telStapGrootte="verp"; tekenTelling(); });
+
+function telBalk(){
+  const totaal = telbaar().length, gedaan = telbaar().filter(isGeteld).length;
+  const balk = el("div",{class:"telbalk"},[
+    el("div",{class:"voortgang"},[
+      document.createTextNode(gedaan+" / "+totaal),
+      el("small",{text: telStap==="tellen" ? "geteld" : "in de vergelijking"})
+    ]),
+    el("div",{class:"rechts"}, telStap==="tellen" ? [
+      el("button",{class:"btn primary",text:"Vergelijken",
+        onclick:()=>{ telStap="vergelijken"; tekenTelling(); window.scrollTo({top:0}); },
+        ...(gedaan ? {} : {disabled:true})}),
+      el("button",{class:"btn ghost",text:"Wissen",onclick:wisTelling})
+    ] : [
+      el("button",{class:"btn",text:"Terug naar tellen",
+        onclick:()=>{ telStap="tellen"; tekenTelling(); }})
+    ])
+  ]);
+  return balk;
+}
+
+function wisTelling(){
+  if(!telbaar().some(isGeteld)){ melding("Er is nog niets geteld."); return; }
+  if(!confirm("De hele telling wissen? De voorraad blijft zoals hij is.")) return;
+  state.producten.forEach(p=>{ p.geteld = null; });
+  telStap = "tellen";
+  bewaar(); tekenTelling();
+  melding("Telling gewist.");
+}
+
+function tekenTelling(){
+  $("#telStuk").setAttribute("aria-pressed", String(telStapGrootte!=="verp"));
+  $("#telVerp").setAttribute("aria-pressed", String(telStapGrootte==="verp"));
+  const balkBox = $("#tellingBalk"); balkBox.textContent = "";
+  balkBox.append(telBalk());
+  const box = $("#tellingLijst"); box.textContent = "";
+  if(telStap === "vergelijken"){ tekenVergelijking(box); return; }
+
+  const q = norm(telZoek);
+  const items = telbaar().filter(p => !q || norm(p.naam+" "+p.groep).includes(q));
+  if(!items.length){ box.append(el("div",{class:"empty",text:"Niets gevonden."})); return; }
+
+  const groepen = [];
+  items.forEach(p=>{
+    let g = groepen.find(g=>g.naam===p.groep);
+    if(!g){ g={naam:p.groep, items:[]}; groepen.push(g); }
+    g.items.push(p);
+  });
+
+  groepen.forEach(g=>{
+    const rows = el("div",{class:"rows"});
+    g.items.forEach(p=>{
+      const stap = telStapGrootte==="verp" ? Math.max(1,p.perVerp) : 1;
+      const invoer = el("input",{type:"number",min:"0",inputmode:"numeric",
+        value: isGeteld(p) ? String(p.geteld) : "", placeholder:"–",
+        "aria-label":"Geteld "+p.naam});
+      invoer.addEventListener("change",()=>{
+        const v = invoer.value.trim();
+        p.geteld = v === "" ? null : Math.max(0, parseInt(v,10) || 0);
+        bewaar(); tekenTelling();
+      });
+      const zet = d => {
+        p.geteld = Math.max(0, (isGeteld(p) ? p.geteld : 0) + d);
+        bewaar(); tekenTelling();
+      };
+      rows.append(el("div",{class:"row"+(isGeteld(p)?"":" ongeteld")},[
+        el("div",{},[
+          el("div",{class:"name",text:p.naam}),
+          el("div",{class:"meta"},[el("span",{
+            text: (p.perVerp>1 ? p.perVerp+" per "+verpakkingWoord(p) : "los")+
+                  (isGeteld(p) && p.perVerp>1 ? " · "+(p.geteld/p.perVerp).toFixed(1).replace(".",",")+" "+verpakkingWoord(p) : "")})])
+        ]),
+        el("div",{class:"stepper"},[
+          el("button",{type:"button","aria-label":"Min "+stap+" "+p.naam,text:"−",onclick:()=>zet(-stap)}),
+          invoer,
+          el("button",{type:"button","aria-label":"Plus "+stap+" "+p.naam,text:"+",onclick:()=>zet(stap)})
+        ])
+      ]));
+    });
+    box.append(el("div",{class:"group"},[
+      el("h2",{},[el("span",{class:"flag"}), el("span",{class:"naam",text:g.naam}),
+        el("span",{class:"telling",text:g.items.filter(isGeteld).length+" / "+g.items.length})]),
+      rows]));
+  });
+
+  box.append(el("p",{class:"hint",style:"margin-top:14px",
+    text:"De verwachte voorraad staat hier bewust niet bij — die zie je pas bij het vergelijken, zodat je telling onbevooroordeeld blijft."}));
+}
+
+function tekenVergelijking(box){
+  const geteld = telbaar().filter(isGeteld)
+    .map(p=>({p, geteld:p.geteld, verwacht:p.voorraad, verschil:p.geteld - p.voorraad}))
+    .sort((a,b)=>a.verschil - b.verschil);
+  const ongeteld = telbaar().filter(p=>!isGeteld(p));
+
+  if(!geteld.length){
+    box.append(el("div",{class:"empty",text:"Nog niets geteld."}));
+    return;
+  }
+
+  const tekorten = geteld.filter(r=>r.verschil < 0);
+  const overschot = geteld.filter(r=>r.verschil > 0);
+  const kloppend = geteld.filter(r=>r.verschil === 0);
+
+  box.append(el("div",{class:"note",html:
+    "<b>"+kloppend.length+"</b> kloppen, <b>"+tekorten.length+"</b> tellen minder dan verwacht, "+
+    "<b>"+overschot.length+"</b> meer. Een tekort betekent dat er iets uit de kast is gegaan zonder dat het "+
+    "via de kassa is afgeboekt: breuk, weggegeven, een gemiste kassaregel — of een telfout."}));
+
+  const tb = el("tbody");
+  geteld.forEach(r=>{
+    const klasse = r.verschil < 0 ? "verschil-tekort" : (r.verschil > 0 ? "verschil-over" : "");
+    tb.append(el("tr",{},[
+      el("td",{text:r.p.naam}),
+      el("td",{class:"n num",text:String(r.geteld)}),
+      el("td",{class:"n num",text:String(r.verwacht)}),
+      el("td",{class:"n num verschil-kort "+klasse,
+        text:(r.verschil>0?"+":"")+r.verschil})
+    ]));
+  });
+  box.append(el("div",{class:"tablewrap"},[el("table",{},[
+    el("thead",{},[el("tr",{},[
+      el("th",{text:"Product"}), el("th",{class:"n",text:"Geteld"}),
+      el("th",{class:"n",text:"Verwacht"}), el("th",{class:"n",text:"Verschil"})])]),
+    tb])]));
+
+  if(ongeteld.length){
+    box.append(el("p",{class:"hint",style:"margin-top:12px",
+      text:"Niet geteld en dus ongewijzigd: "+ongeteld.map(p=>p.naam).join(", ")}));
+  }
+
+  box.append(el("div",{class:"actions"},[
+    el("button",{class:"btn primary",text:"Telling doorvoeren",onclick:()=>{
+      if(!confirm("De voorraad van "+geteld.length+" producten gelijkmaken aan jouw telling?\n\n"+
+                  "Niet-getelde producten blijven ongewijzigd.")) return;
+      const referentie = (prompt("Korte aantekening bij deze telling? (mag leeg)","") || "").trim();
+      const record = { type:"telling", moment:new Date().toISOString(), referentie,
+        regels: geteld.map(r=>({naam:r.p.naam, geteld:r.geteld, verwacht:r.verwacht, verschil:r.verschil})) };
+      geteld.forEach(r=>{ r.p.voorraad = r.geteld; r.p.geteld = null; });
+      telbaar().forEach(p=>{ p.geteld = null; });
+      logboek("Telling doorgevoerd: "+geteld.length+" producten");
+      telStap = "tellen";
+      bewaar(); tekenKop(); tekenVoorraad(); tekenTelling();
+      schrijfTelling(record);
+      toonTab("voorraad");
+      melding("Telling doorgevoerd.");
+    }}),
+    el("button",{class:"btn",text:"Kopieer verschillen",onclick:async()=>{
+      const d = new Date().toLocaleDateString("nl-NL",{day:"numeric",month:"long",year:"numeric"});
+      let t = "Telling kantine Zoebas — "+d+"\n\n";
+      geteld.forEach(r=>{ t += "- "+r.p.naam+": geteld "+r.geteld+", verwacht "+r.verwacht+
+        ", verschil "+(r.verschil>0?"+":"")+r.verschil+"\n"; });
+      try{ await navigator.clipboard.writeText(t); melding("Verschillen gekopieerd."); }
+      catch(e){ melding("Kopiëren lukte niet."); }
+    }}),
+    el("button",{class:"btn ghost",text:"Telling wissen",onclick:wisTelling})
+  ]));
+}
+
 /* ---------------- leveringen ---------------- */
 /* Elke geboekte levering gaat als één regel naar kantine_log (JSON in de
    tekstkolom), zodat je hem later naast de factuur kunt leggen. Zonder
    serververbinding blijft hij lokaal staan. */
 
-async function schrijfLevering(record){
-  state.leveringen = [record].concat(state.leveringen || []).slice(0, 40);
+async function schrijfRecord(record, sleutel){
+  state[sleutel] = [record].concat(state[sleutel] || []).slice(0, 40);
   bewaarLokaal();
   if(!gedeeld || !sb) return;
   try{ await sb.from("kantine_log").insert({ tekst: JSON.stringify(record) }); }
   catch(e){}
 }
+const schrijfLevering = r => schrijfRecord(r, "leveringen");
+const schrijfTelling  = r => schrijfRecord(r, "tellingen");
 
-async function haalLeveringen(){
+async function haalRecords(type, sleutel){
   if(gedeeld && sb){
     try{
       const r = await sb.from("kantine_log").select("moment,tekst")
-        .order("moment",{ascending:false}).limit(40);
+        .order("moment",{ascending:false}).limit(60);
       if(!r.error && r.data){
         return r.data.map(rij=>{
-          try{ const o = JSON.parse(rij.tekst); o.moment = rij.moment; return o; }
+          try{ const o = JSON.parse(rij.tekst); o.moment = o.moment || rij.moment; return o; }
           catch(e){ return null; }
-        }).filter(o => o && o.type === "levering");
+        }).filter(o => o && o.type === type);
       }
     }catch(e){}
   }
-  return state.leveringen || [];
+  return state[sleutel] || [];
 }
+const haalLeveringen = () => haalRecords("levering", "leveringen");
+const haalTellingen  = () => haalRecords("telling", "tellingen");
 
 function leveringTekst(l){
   const d = new Date(l.moment).toLocaleString("nl-NL",
@@ -1059,6 +1278,45 @@ function leveringTekst(l){
   const stuks = l.regels.reduce((t,r)=>t+(r.stuks||0),0);
   uit += "\n"+l.regels.length+" regels, "+stuks+" stuks totaal";
   return uit;
+}
+
+async function tekenTellingHistorie(){
+  const box = $("#tellingHistorie"); if(!box) return;
+  box.textContent = "";
+  const lijst = await haalTellingen();
+  if(!lijst.length){
+    box.append(el("div",{class:"empty",text:"Nog geen telling doorgevoerd."}));
+    return;
+  }
+  lijst.forEach(t=>{
+    const tekort = t.regels.filter(r=>r.verschil<0).reduce((s,r)=>s+r.verschil,0);
+    const afwijkend = t.regels.filter(r=>r.verschil!==0).length;
+    const d = new Date(t.moment);
+    const tb = el("tbody");
+    t.regels.slice().sort((a,b)=>a.verschil-b.verschil).forEach(r=>{
+      const klasse = r.verschil<0 ? "verschil-tekort" : (r.verschil>0 ? "verschil-over" : "");
+      tb.append(el("tr",{},[
+        el("td",{text:r.naam}),
+        el("td",{class:"n num",text:String(r.geteld)}),
+        el("td",{class:"n num",text:String(r.verwacht)}),
+        el("td",{class:"n num verschil-kort "+klasse,text:(r.verschil>0?"+":"")+r.verschil})
+      ]));
+    });
+    box.append(el("details",{class:"levering"},[
+      el("summary",{},[
+        el("span",{class:"datum",text:d.toLocaleDateString("nl-NL",{day:"numeric",month:"short",year:"numeric"})}),
+        t.referentie ? el("span",{class:"ref",text:t.referentie}) : null,
+        el("span",{class:"tel",text:t.regels.length+" geteld · "+afwijkend+" afwijkend · "+tekort+" stuks tekort"})
+      ]),
+      el("div",{class:"body"},[
+        el("div",{class:"tablewrap"},[el("table",{},[
+          el("thead",{},[el("tr",{},[
+            el("th",{text:"Product"}), el("th",{class:"n",text:"Geteld"}),
+            el("th",{class:"n",text:"Verwacht"}), el("th",{class:"n",text:"Verschil"})])]),
+          tb])])
+      ])
+    ]));
+  });
 }
 
 async function tekenLeveringen(){
@@ -1257,7 +1515,7 @@ $("#btnNieuwProduct").addEventListener("click", ()=>{
   if(!naam) return;
   state.producten.push({
     id:"p"+Date.now(), cat:"Dranken", groep:"Overig", naam:naam.trim(),
-    streep:0, perVerp:1, voorraad:0, verkoopPer:1, kassanamen:[], soort:"tellen", bestellen:false, besteld:0
+    streep:0, perVerp:1, voorraad:0, verkoopPer:1, kassanamen:[], soort:"tellen", bestellen:false, besteld:0, geteld:null
   });
   logboek("Product toegevoegd: "+naam.trim());
   bewaar(); tekenBeheer(); tekenChips(); tekenVoorraad();
@@ -1357,21 +1615,6 @@ $("#importFile").addEventListener("change", async e=>{
   }catch(err){ melding("Dit bestand is geen back-up van deze app."); }
   e.target.value="";
 });
-$("#btnNulstelling").addEventListener("click", ()=>{
-  const tellen = state.producten.filter(p=>!isSignaal(p)).length;
-  if(!confirm("Alle "+tellen+" getelde producten op 0 zetten, zodat je opnieuw kunt tellen?\n\n"+
-              "Signaalproducten (koffie, bordjes, wc-papier) blijven zoals ze staan.")) return;
-  state.producten.forEach(p=>{ if(!isSignaal(p)) p.voorraad = 0; });
-  logboek("Nieuwe telling gestart — "+tellen+" producten op 0");
-  bewaar(); tekenAlles();
-  toonTab("voorraad");
-  melding("Alles op 0. Tel maar door.");
-});
-$("#btnAfmelden").addEventListener("click", ()=>{
-  if(!confirm("Dit apparaat afmelden? De toegangscode wordt opnieuw gevraagd. De voorraadgegevens blijven staan.")) return;
-  try{ localStorage.removeItem("zoebas-kantine-toegang"); }catch(e){}
-  location.reload();
-});
 $("#btnReset").addEventListener("click", ()=>{
   if(!confirm("Alles terugzetten naar de startlijst uit de Google Sheet? Je huidige aantallen gaan verloren.")) return;
   state = verseState(); bewaar(); tekenAlles(); melding("Startlijst hersteld.");
@@ -1390,12 +1633,14 @@ const naarRij = (p,i) => ({
   id:p.id, volgorde:i, cat:p.cat, groep:p.groep, naam:p.naam,
   soort:p.soort||"tellen", streep:p.streep|0, per_verp:p.perVerp|0,
   voorraad:p.voorraad|0, verkoop_per:p.verkoopPer|0,
-  kassanamen:p.kassanamen||[], bestellen:!!p.bestellen, besteld:p.besteld|0, updated_at:new Date().toISOString()
+  kassanamen:p.kassanamen||[], bestellen:!!p.bestellen, besteld:p.besteld|0,
+  geteld:(p.geteld===null||p.geteld===undefined)?null:(p.geteld|0), updated_at:new Date().toISOString()
 });
 const naarProduct = r => ({
   id:r.id, cat:r.cat, groep:r.groep, naam:r.naam, soort:r.soort,
   streep:r.streep, perVerp:r.per_verp, voorraad:r.voorraad, verkoopPer:r.verkoop_per,
-  kassanamen:r.kassanamen||[], bestellen:!!r.bestellen, besteld:r.besteld|0
+  kassanamen:r.kassanamen||[], bestellen:!!r.bestellen, besteld:r.besteld|0,
+  geteld:(r.geteld===null||r.geteld===undefined)?null:(r.geteld|0)
 });
 
 async function haalOp(){
