@@ -619,6 +619,7 @@ function verpakkingWoord(p){
   if(p.perVerp<=1) return "stuk";
   if(p.cat==="Dranken"){
     if(/^bier\b/i.test(p.naam)) return "krat";      // bier gaat per krat
+    if(/^aa\b/i.test(p.naam)) return "doos";        // AA-drink gaat per doos
     return p.perVerp>=20 ? "tray" : "sixpack";
   }
   return "doos";
